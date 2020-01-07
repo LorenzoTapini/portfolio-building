@@ -1,0 +1,125 @@
+"""
+@authors: Lorenzo, Christopher
+"""
+
+from utils import read_income_statement, read_balance_sheet, read_cash_flow, companies
+
+def fcff_forecast(comp):
+    last_year = 2014
+    income = read_income_statement(comp, 2009, 2014)
+    ebitp = read_income_statement(comp, 2009, 2014)
+    depre = read_cash_flow(comp, 2009, 2014)
+    capex = read_cash_flow(comp, 2009, 2014)
+    NWC = read_balance_sheet(comp, 2009, 2014)
+    shares = read_income_statement(comp, 2013, 2014)
+    debt = read_balance_sheet(comp, 2013, 2014)
+    cash = read_balance_sheet(comp, 2013, 2014)
+    
+
+#CALCULATE AVERGE REVENUE GROWTH OVER LAST 5 YEARS
+    sum_ = 0
+    for year in income:
+        sum_ += income[year]["rvgr"]
+    avg_rvgr = sum_ / len(income)
+ 
+    
+#CALCULATE AVERAGE EBIT MARGIN OVER LAST 5 YEARS
+    sume = 0
+    for year in ebitp:
+        sume += ebitp[year]["ebit%"]
+    avg_ebitp = sume / len(ebitp)
+
+
+#CALCULATE AVERAGE D&A AS % OF REVENUE OVER LAST 5 YEARS
+    suma = 0
+    for year in depre:
+        suma += depre[year]["dna"] / income[year]["rv"]
+    avg_dnap = suma / len(depre)
+  
+    
+#CALCULATE AVERAGE CAPEX AS % OF REVENUE OVER LAST 5 YEARS
+    sumc = 0
+    for year in capex:
+        sumc += (capex[year]["capex"] / income[year]["rv"]) * -1
+    avg_capexp = sumc / len(capex)
+
+
+#CALCULATE AVERAGE CHANGE IN NWC AS % OF REVENUE OVER LAST 5 YEARS
+    sum1 = 0
+    sum2 = 0
+    sum3 = 0
+    sum4 = 0
+
+    for i in range(2):
+        year1 = last_year - i
+        year2 = year1 - i
+        year3 = year2 - i
+        year4 = year3 - i
+        sum1 += NWC[last_year]["ar"] + NWC[last_year]["inv"] - NWC[last_year]["ap"] - NWC[year1]["ar"] - NWC[year1]["inv"] + NWC[year1]["ap"]
+        sum2 += NWC[year1]["ar"] + NWC[year1]["inv"] - NWC[year1]["ap"] - NWC[year2]["ar"] - NWC[year2]["inv"] + NWC[year2]["ap"]
+        sum3 += NWC[year2]["ar"] + NWC[year2]["inv"] - NWC[year2]["ap"] - NWC[year3]["ar"] - NWC[year3]["inv"] + NWC[year3]["ap"]
+        sum4 += NWC[year3]["ar"] + NWC[year3]["inv"] - NWC[year3]["ap"] - NWC[year4]["ar"] - NWC[year4]["inv"] + NWC[year4]["ap"]
+
+    delta1 = sum1/income[last_year]["rv"]
+    delta2 = sum2/income[year1]["rv"]
+    delta3 = sum3/income[year2]["rv"]
+    delta4 = sum4/income[year3]["rv"]
+    avg_deltaNWC = (delta1 + delta2 + delta3 + delta4)/4
+
+        
+#CALCULATE FCFFs FOR NEXT 5 YEARS & DISCOUNT THEM
+    HURDLE_RATE = 0.08
+    LT_GROWTH = 0.02
+    TAX_RATE = 0.21
+    print(comp)
+    
+    last_rev = income[last_year]["rv"]
+    fcffpv = 0
+    for i in range(5):
+        last_rev = last_rev * (1 + avg_rvgr)
+        ebit = last_rev * avg_ebitp
+        depre = last_rev * avg_dnap
+        capex = last_rev * avg_capexp
+        nopat = ebit * (1-TAX_RATE)
+        NWC = last_rev * avg_deltaNWC
+        fcff = nopat + depre + NWC - capex 
+        fcffpv += fcff / ((1 + HURDLE_RATE) ** (i+1))
+  
+
+# CALCULATE TERMINAL VALUE & DISCOUNT IT
+    ter_fcff = fcff
+    tv =(ter_fcff * (1+LT_GROWTH))/(HURDLE_RATE - LT_GROWTH)
+    tvpv = tv / ((1+ HURDLE_RATE) ** (5))
+
+
+#LAST YEAR'S DEBT    
+    sumd = 0
+    for year in debt:
+        sumd += debt [year]["debt"]
+    debt = sumd
+
+
+#LAST YEAR'S CASH
+    sumca = 0
+    for year in cash:
+        sumca += cash [year]["cash"]
+    cash = sumca
+ 
+    
+#SHARES OUTSTANDING
+    sums = 0
+    for year in shares:
+        sums = shares[year]["shares"]
+    shares = sums
+
+
+#CALCULATE ENTERPRISE VALUE, EQUITY VALUE, AND INTRINSIC SHARE PRICE  
+    ev = fcffpv + tvpv
+    eqv = ev - debt + cash
+    intrinsic_value = eqv/shares
+   
+    print (intrinsic_value)
+
+
+for comp in companies:
+    fcff_forecast(comp)
